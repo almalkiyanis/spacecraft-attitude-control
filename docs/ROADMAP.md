@@ -32,7 +32,7 @@ Learn --> derive --> implement --> validate --> document --> commit.
 
 ### Phase 2+
 - University of Colorado Boulder - Spacecraft Dynamics and Control
--Markley & Crassidis - Fundamentals of Spacecraft Attitude Determination and Control
+- Markley & Crassidis - Fundamentals of Spacecraft Attitude Determination and Control
 
 ## Current Milestones 
 

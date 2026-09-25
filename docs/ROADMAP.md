@@ -61,7 +61,7 @@ Expected implementation:
 2. Study Chapter 3.2.1 --> 3.2.3
 3. Complete 'docs/conventions.md'
 4. Set up Eigen
-5. Implement the first SO(3) utility: 'axisAngleToDCM(axis, angle)
+5. Implement the first SO(3) utility: 'axisAngleToRotationalMatrix(axis, angle)
 6. Validate it with unit tests before adding more functionnality
 
 ### Initial validation cases

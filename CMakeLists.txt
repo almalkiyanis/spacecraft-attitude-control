@@ -11,6 +11,7 @@ find_package(GTest CONFIG REQUIRED)
 
 add_library(sac_attitude
     src/attitude/Rotation.cpp
+    src/attitude/Quaternion.cpp
 )
 target_include_directories(sac_attitude PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -32,3 +33,17 @@ target_link_libraries(test_rotation PRIVATE
 
 enable_testing()
 add_test(NAME test_rotation COMMAND test_rotation)
+
+
+# --- tests: test_quaternion -------------------------------------------------
+
+add_executable(test_quaternion
+    tests/attitude/test_quaternion.cpp
+)
+target_link_libraries(test_quaternion PRIVATE
+    sac_attitude
+    GTest::gtest
+    GTest::gtest_main
+)
+
+add_test(NAME test_quaternion COMMAND test_quaternion)

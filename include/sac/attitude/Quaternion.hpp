@@ -37,6 +37,24 @@ public:
     // The multiplicative identity: [1, 0, 0, 0] (zero rotation).
     static Quaternion Identity();
 
+    // Builds the unit quatenrion representing an ACTIVE rotation of 
+    // 'angle' radians about 'axis', following the same right-hand-rule
+    // conventions as axisAngleToRotationMatrix() in Rotation.hpp:
+    //
+    //  q0 = cos(angle/2)
+    //  qv = normalize(axis) * sin(angle/2)
+    //
+    // 'axis' does not need to be pre-normalized (normalized internally),
+    // mirroring axisAngleToRotationMatrix(). Throws std::invalid_argument if 'axis'
+    // is (numerically) the zero vector. The result always ahs unit norm
+    // by construction, for any finite 'angle'.
+    //
+    // This is the same quaternion whose toRotationMatrix() reproduces
+    // axisAnlgleToRotationMatrix(axis, angle) exactly (see test_quaternion.cpp) - NOT
+    // q_BI from docs/conventions.md, which is the quaternion's conjugate.
+    static Quaternion fromAxisAngle(const Eigen::Vector3d& axis,
+                                     double angle);
+
     // --- accessors -------------------------------------------------------
 
     double q0() const; // scalar part
@@ -79,6 +97,25 @@ public:
 
     // Hamilton product: this ⊗ other. NOT commutative.
     Quaternion operator*(const Quaternion& other) const;
+    
+    // --- conversion ------------------------------------------------------
+
+    // Converts this quaternion to the (active) rotatio  matrix it
+    // represents, via the sandwich-product formula consistent with
+    // docs/conventions.md's Hamilton, scalar-first convention/
+    //
+    //  R = I + 2*q0[qv]_x + 2*[qv]_x^2
+    //
+    // Requires isUnit(): throws std::invalid_argument if the quaternion is
+    // not (numerically) unit norm. This is hard precondition, unlike
+    // conjugate()/inverse(): the formula only yields an orthogonal,
+    // det=1 matrix ||q|| = 1 - for any other norm the result is not
+    // a rotation at all (verified numerically before writing this), so
+    // there is no sensible "best effort" behaviour to fall back to.
+    //
+    // By construction, q and -q amways produce the exact same matrix
+    // (the double-cover property): R is quadrate in q's coefficients.
+    Eigen::Matrix3d toRotationMatrix() const;
     
     // --- comparison ------------------------------------------------------
 

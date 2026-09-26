@@ -3,6 +3,8 @@
 #include <cmath>
 #include <stdexcept>
 
+#include "sac/attitude/Rotation.hpp" // reuses skew() for toRtationMatrix()
+
 namespace sac::attitude {
 
 namespace {
@@ -21,6 +23,24 @@ Quaternion::Quaternion(const Eigen::Vector4d& q) : q_(q) {}
 
 Quaternion Quaternion::Identity() {
     return Quaternion(1.0, 0.0, 0.0, 0.0);
+}
+
+Quaternion Quaternion::fromAxisAngle(const Eigen::Vector3d& axis,
+                                     double angle) {
+    const double axisNorm = axis.norm();
+    if (axisNorm <= kMinNorm) {
+        throw std::invalid_argument(
+            "Quaternion::fromAxisAngle(): rotation axis must be non-zero.");
+    }
+
+    // Normalizing here (instead of requiring a pre-normalized unit vector)
+    // mirrors axisAngleToRotationMatrix() in Rotation.cpp
+    const Eigen::Vector3d u = axis / axisNorm;
+    const double halfAngle = angle / 2.0;
+    const Eigen::Vector3d qv = std::sin(halfAngle) * u;
+
+    return Quaternion(std::cos(halfAngle), qv.x(), qv.y(), qv.z());
+
 }
 
 // --- accessors ---------------------------------------------------------------------
@@ -96,6 +116,26 @@ Quaternion Quaternion::operator*(const Quaternion& other) const {
 
     return Quaternion(resultScalar, resultVec.x(), resultVec.y(),
                         resultVec.z());
+}
+
+// --- conversion -------------------------------------------------------------------
+
+Eigen::Matrix3d Quaternion::toRotationMatrix() const {
+    if (!isUnit()) {
+        throw std::invalid_argument(
+            "Quaternion::toRotationMatrix(): quaternion must be unit norm "
+            "(the formula only yields a valid rotation matrix when "
+            "||q|| = 1; verified numerically that a non-unit q does not "
+            "even give an orthogonal matrix()."
+        );
+    }
+
+    const double q0Val = q0();
+    const Eigen::Vector3d qv = vec();
+    const Eigen::Matrix3d K = skew(qv);
+
+    // R = I + 2*q0*[qv]_x + 2*[qv]_x^2 (docs/conventions.md).
+    return Eigen::Matrix3d::Identity() + 2.0 * q0Val * K + 2.0 * (K * K);
 }
 
 // --- comparison -------------------------------------------------------------------

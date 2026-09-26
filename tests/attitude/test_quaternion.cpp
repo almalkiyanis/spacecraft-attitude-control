@@ -1,4 +1,6 @@
 #include "sac/attitude/Quaternion.hpp"
+#include "sac/attitude/Rotation.hpp" // reuses skew() for toRtationMatrix()
+
 
 #include <gtest/gtest.h>
 
@@ -6,7 +8,7 @@
 
 #include <Eigen/Dense>
 
-
+using sac::attitude::axisAngleToRotationMatrix;
 using sac::attitude::Quaternion;
 
 namespace {
@@ -229,3 +231,115 @@ TEST(Quaternion, IsApproxDoesNotTreatQAndMinusQAsEqual) {
  
     EXPECT_FALSE(q.isApprox(negQ, kTol));
 }
+
+// --- fromAxisAngle() -------------------------------------------------------
+
+TEST(Quaternion, FromAxisAngleIsAlwaysUnitNorm) {
+    // True for any finite angle, since q0 = cos(angle / 2), qv=u*sin(angle/2)
+    // with ||u|| = 1 gives cos^2 + sin^2 = 1 regardless of the angle's value.
+    for (double angle : {0.0, 2.0 * M_PI, -3.5, 10.0}) {
+        const Quaternion q = 
+            Quaternion::fromAxisAngle(Eigen::Vector3d(1.0, 2.0, 3.0), angle);
+        EXPECT_NEAR(q.norm(), 1.0, kTol) << "angle = " << angle;  
+    }
+}
+ 
+TEST(Quaternion, FromAxisAngleDoesNotRequirePreNormalizedAxis) {
+    const double angle = 0.9;
+    const Quaternion q1 =
+        Quaternion::fromAxisAngle(Eigen::Vector3d(0.0, 0.0, 2.0), angle);
+    const Quaternion q2 =
+        Quaternion::fromAxisAngle(Eigen::Vector3d(0.0, 0.0, 0.5), angle);
+ 
+    EXPECT_TRUE(q1.isApprox(q2, kTol));
+}
+ 
+TEST(Quaternion, FromAxisAngleZeroAxisThrows) {
+    EXPECT_THROW(
+        Quaternion::fromAxisAngle(Eigen::Vector3d::Zero(), 1.0),
+        std::invalid_argument);
+}
+ 
+// --- toRotationMatrix() ----------------------------------------------------
+ 
+TEST(Quaternion, ToRotationMatrixOnNonUnitThrows) {
+    const Quaternion q(1.0, 1.0, 0.0, 0.0); // norm = sqrt(2)
+    ASSERT_FALSE(q.isUnit());
+ 
+    EXPECT_THROW(q.toRotationMatrix(), std::invalid_argument);
+}
+ 
+// --- cross-check: Quaternion path vs. direct Rodrigues path ---------------
+//
+// The point of these tests: fromAxisAngle(...).toRotationMatrix() and
+// axisAngleToRotationMatrix(...) are two independently-implemented routes to the same
+// rotation matrix (one via quaternion sandwich product, one via Rodrigues'
+// formula directly). Agreement between them is a much stronger check than
+// either module's own internal tests, because a bug shared by both
+// implementations wouldn't be caught by either alone -- these two were
+// derived and coded independently, so the comparison is meaningful.
+ 
+TEST(QuaternionRotationMatrixCrossCheck, Identity) {
+    const Eigen::Vector3d axis(0.4, -1.1, 2.0); // direction irrelevant at angle 0
+    const double angle = 0.0;
+ 
+    const Eigen::Matrix3d viaQuaternion =
+        Quaternion::fromAxisAngle(axis, angle).toRotationMatrix();
+    const Eigen::Matrix3d viaRodrigues = axisAngleToRotationMatrix(axis, angle);
+ 
+    EXPECT_TRUE(viaQuaternion.isApprox(viaRodrigues, kTol));
+    EXPECT_TRUE(viaQuaternion.isApprox(Eigen::Matrix3d::Identity(), kTol));
+}
+ 
+TEST(QuaternionRotationMatrixCrossCheck, NinetyDegAboutX) {
+    const Eigen::Vector3d axis(1.0, 0.0, 0.0);
+    const double angle = M_PI / 2.0;
+ 
+    const Eigen::Matrix3d viaQuaternion =
+        Quaternion::fromAxisAngle(axis, angle).toRotationMatrix();
+    const Eigen::Matrix3d viaRodrigues = axisAngleToRotationMatrix(axis, angle);
+ 
+    EXPECT_TRUE(viaQuaternion.isApprox(viaRodrigues, kTol));
+}
+ 
+TEST(QuaternionRotationMatrixCrossCheck, NinetyDegAboutZ) {
+    const Eigen::Vector3d axis(0.0, 0.0, 1.0);
+    const double angle = M_PI / 2.0;
+ 
+    const Eigen::Matrix3d viaQuaternion =
+        Quaternion::fromAxisAngle(axis, angle).toRotationMatrix();
+    const Eigen::Matrix3d viaRodrigues = axisAngleToRotationMatrix(axis, angle);
+ 
+    EXPECT_TRUE(viaQuaternion.isApprox(viaRodrigues, kTol));
+}
+ 
+TEST(QuaternionRotationMatrixCrossCheck, ArbitraryNormalizedAxis) {
+    Eigen::Vector3d axis(0.3, -0.6, 0.74);
+    axis.normalize();
+    const double angle = 1.234;
+ 
+    const Eigen::Matrix3d viaQuaternion =
+        Quaternion::fromAxisAngle(axis, angle).toRotationMatrix();
+    const Eigen::Matrix3d viaRodrigues = axisAngleToRotationMatrix(axis, angle);
+ 
+    EXPECT_TRUE(viaQuaternion.isApprox(viaRodrigues, kTol));
+}
+ 
+TEST(QuaternionRotationMatrixCrossCheck, QAndNegQGiveExactlySameRotationMatrix) {
+    const Eigen::Vector3d axis(0.2, 0.5, 0.8);
+    const double angle = 0.77;
+ 
+    const Quaternion q = Quaternion::fromAxisAngle(axis, angle);
+    const Quaternion negQ(-q.q0(), -q.q1(), -q.q2(), -q.q3());
+ 
+    // Sanity: negQ is a different set of coefficients...
+    EXPECT_FALSE(q.isApprox(negQ, kTol));
+    // ...but represents the exact same rotation (double cover).
+    EXPECT_TRUE(q.toRotationMatrix().isApprox(negQ.toRotationMatrix(), kTol));
+ 
+    // And both still agree with the independent Rodrigues computation.
+    const Eigen::Matrix3d viaRodrigues = axisAngleToRotationMatrix(axis, angle);
+    EXPECT_TRUE(q.toRotationMatrix().isApprox(viaRodrigues, kTol));
+    EXPECT_TRUE(negQ.toRotationMatrix().isApprox(viaRodrigues, kTol));
+}
+

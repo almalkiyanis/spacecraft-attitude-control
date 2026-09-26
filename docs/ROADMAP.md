@@ -222,9 +222,9 @@ Connect the mathematical attitude representations already implemented and prove 
 
 Quaternion-related:
 
-- [ ] Quaternion --> active rotation matrix
+- [x] Quaternion --> active rotation matrix
 - [ ] Active rotation matrix --> quaternion
-- [ ] Axis-angle --> quaternion
+- [x] Axis-angle --> quaternion
 - [ ] Quaternion --> axis-angle
 
 Frame/attitude interpretation:

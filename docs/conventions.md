@@ -126,7 +126,7 @@ writing q_BI = [q0, qv], with [qv]_× the skew-symmetric matrix of qv (same skew
 
     R_BI = I + 2*q0*[qv]_x + 2*[qv]_x^2
 
-This is the same sandwich-product map used everywhere else in this project (compare to axisAngleToDCM), applied directly to the components of q_BI — no separate "active quaternion" needs to be introduced first.
+This is the same sandwich-product map used everywhere else in this project (compare to axisAngleToRotationMatrix), applied directly to the components of q_BI — no separate "active quaternion" needs to be introduced first.
 
 ### Quaternion kinematics (with ω_B as already defined above):
 
